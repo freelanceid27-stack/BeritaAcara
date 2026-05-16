@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Berita Acara Digital - Patria</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/signature_pad/1.5.3/signature_pad.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        body { font-family: 'Times New Roman', serif; background-color: #f3f4f6; }
+        .wrapper { width: 100%; max-width: 850px; margin: 0 auto; padding: 20px; }
+        .document-paper { 
+            background: white; padding: 20mm; margin-top: 30px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1); color: black; min-height: 297mm;
+        }
+        .uppercase-input { text-transform: uppercase; }
+        table { width: 100%; border-collapse: collapse; }
+        .info-table td { padding: 5px 0; vertical-align: top; }
+        .data-table td, .data-table th { border: 1px solid black; padding: 8px; text-align: left; }
+        .ttd-box { border: 1px solid black; height: 90px; display: flex; align-items: center; justify-content: center; background: #fff; margin: 5px 0; }
+        .ttd-box img { max-width: 95%; max-height: 95%; object-fit: contain; }
+        .canvas-area { border: 2px solid #ddd; background: white; height: 130px; border-radius: 8px; overflow: hidden; }
+        
+        @media print { 
+            .no-print { display: none !important; } 
+            body { background: white; }
+            .wrapper { max-width: 100%; padding: 0; }
+            .document-paper { box-shadow: none; margin: 0; padding: 15mm; min-height: auto; }
+            .page-break { page-break-before: always; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="wrapper">
+        <div class="no-print bg-white p-8 rounded-xl shadow-lg border-t-8 border-green-600">
+            <h2 class="text-2xl font-bold mb-8 text-center text-gray-800">📝 FORM INPUT LAPORAN</h2>
+            
+            <input type="hidden" id="edit-key"> <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block font-bold mb-2 text-gray-700">Tanggal & Jam</label>
+                    <div class="flex gap-2">
+                        <input type="date" id="input-tanggal" class="w-full border-2 p-3 rounded-lg focus:border-green-500 outline-none">
+                        <input type="time" id="input-jam" class="w-full border-2 p-3 rounded-lg focus:border-green-500 outline-none">
+                    </div>
+                </div>
+                <div>
+                    <label class="block font-bold mb-2 text-gray-700">Nomor Berita Acara (No/Kode/Thn)</label>
+                    <input type="text" id="input-nomor-lengkap" class="w-full border-2 p-3 rounded-lg uppercase-input" placeholder="05 / BAL-SEC / X / 2025">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block font-bold mb-2 text-gray-700">Nama Pelapor</label>
+                    <input type="text" id="input-nama" class="w-full border-2 p-3 rounded-lg uppercase-input" placeholder="NAMA LENGKAP PELAPOR">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block font-bold mb-2 text-gray-700">Bentuk Kejadian</label>
+                    <input type="text" id="input-kejadian" class="w-full border-2 p-3 rounded-lg uppercase-input" placeholder="CONTOH: PENCURIAN / TEMUAN BARANG">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block font-bold mb-2 text-gray-700">Isi Laporan / Kronologi Kejadian</label>
+                    <textarea id="input-isi" rows="4" class="w-full border-2 p-3 rounded-lg focus:border-green-500 outline-none" placeholder="Tuliskan detail kronologi..."></textarea>
+                </div>
+            </div>
+
+            <div class="mt-8 border-t pt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div><label class="text-sm font-bold text-gray-600">Barang Temuan</label><input type="text" id="input-barang" class="w-full border-2 p-3 rounded-lg"></div>
+                <div><label class="text-sm font-bold text-gray-600">Jumlah</label><input type="text" id="input-jumlah" class="w-full border-2 p-3 rounded-lg"></div>
+                <div><label class="text-sm font-bold text-gray-600">Nama Pembawa</label><input type="text" id="input-pembawa" class="w-full border-2 p-3 rounded-lg"></div>
+                <div><label class="text-sm font-bold text-gray-600">Departemen / Bagian</label><input type="text" id="input-dept" class="w-full border-2 p-3 rounded-lg"></div>
+                <div><label class="text-sm font-bold text-gray-600">Group Leader UTPE</label><input type="text" id="input-glutpe" class="w-full border-2 p-3 rounded-lg"></div>
+                <div><label class="text-sm font-bold text-gray-600">Group Leader DPP</label><input type="text" id="input-gldpp" class="w-full border-2 p-3 rounded-lg"></div>
+                <div class="md:col-span-2"><label class="text-sm font-bold text-gray-600">Alasan Barang Dibawa</label><input type="text" id="input-alasan" class="w-full border-2 p-3 rounded-lg"></div>
+            </div>
+
+            <div class="mt-8 p-6 border-2 border-dashed rounded-xl bg-gray-50 text-center">
+                <input type="file" id="upload-file" accept="image/*" multiple class="hidden">
+                <label for="upload-file" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg cursor-pointer font-bold inline-block transition">📁 Upload Foto Bukti</label>
+                <div id="preview-container" class="flex flex-wrap gap-4 mt-6 justify-center"></div>
+            </div>
+
+            <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="text-center">
+                    <p class="font-bold mb-2">PIC Security</p>
+                    <input type="text" id="input-nama1" class="w-full border-2 p-2 mb-2 rounded" placeholder="Nama PIC">
+                    <div class="canvas-area"><canvas id="pad1"></canvas></div>
+                    <button onclick="pad1.clear()" class="text-xs text-red-500 mt-2 hover:underline">Hapus TTD</button>
+                </div>
+                <div class="text-center">
+                    <p class="font-bold mb-2">Kepala Security</p>
+                    <input type="text" id="input-nama2" class="w-full border-2 p-2 mb-2 rounded" placeholder="Nama Kepala">
+                    <div class="canvas-area"><canvas id="pad2"></canvas></div>
+                    <button onclick="pad2.clear()" class="text-xs text-red-500 mt-2 hover:underline">Hapus TTD</button>
+                </div>
+                <div class="text-center">
+                    <p class="font-bold mb-2">Danru Security</p>
+                    <input type="text" id="input-nama3" class="w-full border-2 p-2 mb-2 rounded" placeholder="Nama Danru">
+                    <div class="canvas-area"><canvas id="pad3"></canvas></div>
+                    <button onclick="pad3.clear()" class="text-xs text-red-500 mt-2 hover:underline">Hapus TTD</button>
+                </div>
+            </div>
+
+            <div class="mt-10 flex flex-wrap gap-4">
+                <button onclick="simpanData()" id="btn-simpan" class="flex-1 bg-green-600 hover:bg-green-700 text-white py-5 rounded-xl font-bold text-xl shadow-lg transition flex items-center justify-center gap-2">
+                   <i class="fas fa-save"></i> <span id="text-simpan">SIMPAN DATA</span>
+                </button>
+                <button onclick="exportKePDF()" class="bg-red-600 hover:bg-red-700 text-white px-10 py-5 rounded-xl font-bold shadow-lg transition flex items-center gap-2">
+                    <i class="fas fa-file-pdf"></i> PDF
+                </button>
+                <button onclick="window.print()" class="bg-slate-800 hover:bg-slate-900 text-white px-10 py-5 rounded-xl font-bold shadow-lg transition">🖨️ CETAK</button>
+            </div>
+        </div>
+
+        <div class="no-print mt-10 bg-white p-6 rounded-xl shadow-lg border-t-8 border-blue-500">
+            <h3 class="text-xl font-bold mb-4 flex items-center gap-2">
+                <i class="fas fa-history text-blue-500"></i> Riwayat Laporan Terakhir
+            </h3>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left border">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th class="p-3 border">No. Berita Acara</th>
+                            <th class="p-3 border">Tanggal</th>
+                            <th class="p-3 border">Pelapor</th>
+                            <th class="p-3 border">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-riwayat">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="area-pdf">
+            <div class="document-paper" id="printable-area">
+                <table>
+                    <tr>
+                        <td style="width: 160px;"><img src="patria.png" alt="logo" style="width: 140px;"></td>
+                        <td></td>
+                    </tr>
+                </table>
+                <hr style="border: 1px solid black; margin: 15px 0;">
+                <h1 style="text-align: center; text-decoration: underline; font-weight: bold; font-size: 20px; margin-bottom: 5px;">BERITA ACARA LAPORAN</h1>
+                <p style="text-align: center; margin-bottom: 30px; font-weight: bold;">Nomor : <span id="view-nomor">..........................................</span></p>
+
+                <p style="font-weight: bold; margin-bottom: 10px;">Telah melaporkan dibawah ini :</p>
+                <table class="info-table" style="margin-bottom: 20px;">
+                    <tr><td style="width: 160px;">Nama</td><td>: <span id="view-nama" style="font-weight: bold;"></span></td></tr>
+                    <tr><td>Dept</td><td>: Security</td></tr>
+                    <tr><td>Tanggal / Jam</td><td>: <span id="view-tanggal"></span> / <span id="view-jam"></span> WIB</td></tr>
+                    <tr><td>Bentuk kejadian</td><td>: <span id="view-kejadian"></span></td></tr>
+                </table>
+
+                <p style="font-weight: bold; margin-bottom: 5px;">Kronologi Kejadian :</p>
+                <div id="view-isi" style="text-align: justify; margin-bottom: 25px; min-height: 80px; line-height: 1.6; white-space: pre-wrap;"></div>
+
+                <table class="data-table" style="margin-bottom: 40px;">
+                    <tr><td style="width: 35%; font-weight: bold;">Barang Temuan</td><td>: <span id="view-barang"></span></td></tr>
+                    <tr><td style="font-weight: bold;">Jumlah</td><td>: <span id="view-jumlah"></span></td></tr>
+                    <tr><td style="font-weight: bold;">Nama Pembawa</td><td>: <span id="view-pembawa"></span></td></tr>
+                    <tr><td style="font-weight: bold;">Dept/Bagian</td><td>: <span id="view-dept"></span></td></tr>
+                    <tr><td style="font-weight: bold;">GL UTPE / GL DPP</td><td>: <span id="view-glutpe"></span> / <span id="view-gldpp"></span></td></tr>
+                    <tr><td style="font-weight: bold;">Alasan</td><td>: <span id="view-alasan"></span></td></tr>
+                </table>
+
+                <table style="text-align: center; font-size: 13px;">
+                    <tr>
+                        <td style="width: 33%;">
+                            <p>Mengetahui,</p>
+                            <div class="ttd-box"><img id="img-ttd1"></div>
+                            <p id="nama-jelas-1" style="font-weight: bold; text-decoration: underline; text-transform: uppercase;"></p>
+                            <p>PIC Security</p>
+                        </td>
+                        <td style="width: 33%;">
+                            <p>Mengetahui,</p>
+                            <div class="ttd-box"><img id="img-ttd2"></div>
+                            <p id="nama-jelas-2" style="font-weight: bold; text-decoration: underline; text-transform: uppercase;"></p>
+                            <p>Kepala Security</p>
+                        </td>
+                        <td style="width: 33%;">
+                            <p>Cikarang, <span id="view-tgl-ttd"></span></p>
+                            <div class="ttd-box"><img id="img-ttd3"></div>
+                            <p id="nama-jelas-3" style="font-weight: bold; text-decoration: underline; text-transform: uppercase;"></p>
+                            <p>Danru Security</p>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="document-paper page-break" id="halaman-foto">
+                <h2 style="text-align: center; font-weight: bold; border-bottom: 2px solid black; padding-bottom: 10px; margin-bottom: 20px;">LAMPIRAN FOTO BUKTI</h2>
+                <div id="foto-container" class="grid grid-cols-2 gap-4">
+                    <p class="text-center col-span-2 text-gray-400">Belum ada foto yang diupload.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Konfigurasi Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyDwrz33TnLX6fNH12iAvAlv8gbWAMHtLd0",
+            authDomain: "beritaacara-e402c.firebaseapp.com",
+            databaseURL: "https://beritaacara-e402c-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "beritaacara-e402c"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        let listFoto = [];
+
+        // Inisialisasi Canvas Tanda Tangan
+        const canvas1 = document.getElementById('pad1');
+        const canvas2 = document.getElementById('pad2');
+        const canvas3 = document.getElementById('pad3');
+
+        const pad1 = new SignaturePad(canvas1);
+        const pad2 = new SignaturePad(canvas2);
+        const pad3 = new SignaturePad(canvas3);
+
+        // Fungsi untuk menyesuaikan ukuran internal canvas agar presisi saat digambar
+        function resizeCanvas() {
+            [canvas1, canvas2, canvas3].forEach(canvas => {
+                const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                canvas.width = canvas.offsetWidth * ratio;
+                canvas.height = canvas.offsetHeight * ratio;
+                canvas.getContext("2d").scale(ratio, ratio);
+            });
+            pad1.clear(); pad2.clear(); pad3.clear();
+        }
+        window.addEventListener("resize", resizeCanvas);
+
+        // Format Tanggal Indonesia
+        function formatTanggalIndo(tgl) {
+            if(!tgl) return "-";
+            const options = { day: 'numeric', month: 'long', year: 'numeric' };
+            return new Date(tgl).toLocaleDateString('id-ID', options);
+        }
+
+        // Handle Upload Foto Baru
+        document.getElementById('upload-file').addEventListener('change', function(e) {
+            const preview = document.getElementById('preview-container');
+            preview.innerHTML = ""; 
+            listFoto = []; // Reset penampung jika user mengklik upload baru lagi
+            
+            Array.from(e.target.files).forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    listFoto.push(ev.target.result);
+                    preview.innerHTML += `<img src="${ev.target.result}" class="w-20 h-20 object-cover border-2 rounded shadow-sm">`;
+                };
+                reader.readAsDataURL(file);
+            });
+        });
+
+        // Load Riwayat dari Firebase
+        function loadRiwayat() {
+            db.ref('laporan').limitToLast(10).on('value', snapshot => {
+                const tbody = document.getElementById('table-riwayat');
+                tbody.innerHTML = "";
+                snapshot.forEach(child => {
+                    const d = child.val();
+                    tbody.innerHTML = `
+                        <tr class="hover:bg-gray-50">
+                            <td class="p-3 border font-mono text-xs">${d.nomorLengkap}</td>
+                            <td class="p-3 border">${formatTanggalIndo(d.tanggal)}</td>
+                            <td class="p-3 border">${d.nama}</td>
+                            <td class="p-3 border text-center">
+                                <button onclick="editData('${child.key}')" class="text-blue-600 hover:text-blue-800 mr-3" title="Edit"><i class="fas fa-edit"></i></button>
+                                <button onclick="hapusData('${child.key}')" class="text-red-600 hover:text-red-800" title="Hapus"><i class="fas fa-trash"></i></button>
+                            </td>
+                        </tr>
+                    ` + tbody.innerHTML;
+                });
+            });
+        }
+
+        // --- FUNGSI PERBAIKAN: EDIT DATA (LOAD DATA LAMA KE VARIABEL & CANVAS) ---
+        function editData(key) {
+            db.ref('laporan/' + key).once('value', snapshot => {
+                const d = snapshot.val();
+                document.getElementById('edit-key').value = key;
+                document.getElementById('input-tanggal').value = d.tanggal;
+                document.getElementById('input-jam').value = d.jam;
+                document.getElementById('input-nomor-lengkap').value = d.nomorLengkap;
+                document.getElementById('input-nama').value = d.nama;
+                document.getElementById('input-kejadian').value = d.kejadian;
+                document.getElementById('input-isi').value = d.isi;
+                document.getElementById('input-barang').value = d.barang;
+                document.getElementById('input-jumlah').value = d.jumlah;
+                document.getElementById('input-pembawa').value = d.pembawa;
+                document.getElementById('input-dept').value = d.dept;
+                document.getElementById('input-glutpe').value = d.glutpe;
+                document.getElementById('input-gldpp').value = d.gldpp;
+                document.getElementById('input-alasan').value = d.alasan;
+                document.getElementById('input-nama1').value = d.nama1 || "";
+                document.getElementById('input-nama2').value = d.nama2 || "";
+                document.getElementById('input-nama3').value = d.nama3 || "";
+                
+                // 1. Kunci Foto Lama: Supaya saat disimpan ulang oleh Chief, foto Danru tidak hilang
+                listFoto = d.fotoList || []; 
+                
+                // Munculkan pratinjau foto lama di dalam form input agar kelihatan
+                const preview = document.getElementById('preview-container');
+                preview.innerHTML = listFoto.map(f => `<img src="${f}" class="w-20 h-20 object-cover border-2 rounded shadow-sm">`).join('');
+
+                // 2. Kunci TTD Lama: Muat ulang TTD yang sudah ada ke dalam pad canvas masing-masing
+                pad1.clear(); pad2.clear(); pad3.clear();
+                if (d.ttd1) pad1.fromDataURL(d.ttd1);
+                if (d.ttd2) pad2.fromDataURL(d.ttd2);
+                if (d.ttd3) pad3.fromDataURL(d.ttd3);
+                
+                document.getElementById('text-simpan').innerText = "UPDATE DATA";
+                document.getElementById('btn-simpan').classList.replace('bg-green-600', 'bg-blue-600');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                updateView(d);
+            });
+        }
+
+        // --- FUNGSI PERBAIKAN: SIMPAN DATA DENGAN SISTEM PROTEKSI ---
+        function simpanData() {
+            const nomor = document.getElementById('input-nomor-lengkap').value;
+            const nama = document.getElementById('input-nama').value;
+            if(!nomor || !nama) {
+                return Swal.fire('Gagal!', 'Nomor Laporan dan Nama Pelapor wajib diisi.', 'warning');
+            }
+
+            Swal.fire({ title: 'Menyimpan...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+            const editKey = document.getElementById('edit-key').value;
+
+            // Jika STATUSNYA ADALAH EDIT DATA (UPDATE)
+            if (editKey) {
+                db.ref('laporan/' + editKey).once('value', snapshot => {
+                    const dataLama = snapshot.val() || {};
+
+                    const dataUpdate = {
+                        tanggal: document.getElementById('input-tanggal').value,
+                        jam: document.getElementById('input-jam').value,
+                        nomorLengkap: nomor.toUpperCase(),
+                        nama: nama.toUpperCase(),
+                        kejadian: document.getElementById('input-kejadian').value.toUpperCase(),
+                        isi: document.getElementById('input-isi').value,
+                        barang: document.getElementById('input-barang').value,
+                        jumlah: document.getElementById('input-jumlah').value,
+                        pembawa: document.getElementById('input-pembawa').value,
+                        dept: document.getElementById('input-dept').value,
+                        glutpe: document.getElementById('input-glutpe').value,
+                        gldpp: document.getElementById('input-gldpp').value,
+                        alasan: document.getElementById('input-alasan').value,
+                        nama1: document.getElementById('input-nama1').value,
+                        nama2: document.getElementById('input-nama2').value,
+                        nama3: document.getElementById('input-nama3').value,
+                        // Jika tidak ada perubahan/coretan baru di canvas, gunakan TTD lama dari DB.
+                        ttd1: pad1.isEmpty() ? (dataLama.ttd1 || "") : pad1.toDataURL(),
+                        ttd2: pad2.isEmpty() ? (dataLama.ttd2 || "") : pad2.toDataURL(),
+                        ttd3: pad3.isEmpty() ? (dataLama.ttd3 || "") : pad3.toDataURL(),
+                        fotoList: listFoto
+                    };
+
+                    db.ref('laporan/' + editKey).set(dataUpdate).then(() => {
+                        Swal.fire({ icon: 'success', title: 'Berhasil diupdate!', timer: 1500, showConfirmButton: false });
+                        updateView(dataUpdate);
+                        resetForm();
+                    });
+                });
+            } else {
+                // JIKA INPUT BARU (DATA PERTAMA KALI DIBUAT)
+                const dataBaru = {
+                    tanggal: document.getElementById('input-tanggal').value,
+                    jam: document.getElementById('input-jam').value,
+                    nomorLengkap: nomor.toUpperCase(),
+                    nama: nama.toUpperCase(),
+                    kejadian: document.getElementById('input-kejadian').value.toUpperCase(),
+                    isi: document.getElementById('input-isi').value,
+                    barang: document.getElementById('input-barang').value,
+                    jumlah: document.getElementById('input-jumlah').value,
+                    pembawa: document.getElementById('input-pembawa').value,
+                    dept: document.getElementById('input-dept').value,
+                    glutpe: document.getElementById('input-glutpe').value,
+                    gldpp: document.getElementById('input-gldpp').value,
+                    alasan: document.getElementById('input-alasan').value,
+                    nama1: document.getElementById('input-nama1').value,
+                    nama2: document.getElementById('input-nama2').value,
+                    nama3: document.getElementById('input-nama3').value,
+                    ttd1: pad1.isEmpty() ? "" : pad1.toDataURL(),
+                    ttd2: pad2.isEmpty() ? "" : pad2.toDataURL(),
+                    ttd3: pad3.isEmpty() ? "" : pad3.toDataURL(),
+                    fotoList: listFoto
+                };
+
+                db.ref('laporan').push().set(dataBaru).then(() => {
+                    Swal.fire({ icon: 'success', title: 'Berhasil disimpan!', timer: 1500, showConfirmButton: false });
+                    updateView(dataBaru);
+                    resetForm();
+                    listFoto = []; // Bersihkan cache foto lokal setelah simpan data baru
+                });
+            }
+        }
+
+        function hapusData(key) {
+            Swal.fire({
+                title: 'Yakin hapus?',
+                text: "Data yang dihapus tidak bisa dikembalikan!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Ya, Hapus!'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    db.ref('laporan/' + key).remove();
+                    Swal.fire('Terhapus!', 'Data berhasil dibuang.', 'success');
+                }
+            });
+        }
+
+        function resetForm() {
+            document.getElementById('edit-key').value = "";
+            document.getElementById('text-simpan').innerText = "SIMPAN DATA";
+            document.getElementById('btn-simpan').classList.replace('bg-blue-600', 'bg-green-600');
+        }
+
+        function updateView(d) {
+            document.getElementById('view-nomor').innerText = d.nomorLengkap;
+            document.getElementById('view-nama').innerText = d.nama;
+            document.getElementById('view-tanggal').innerText = formatTanggalIndo(d.tanggal);
+            document.getElementById('view-jam').innerText = d.jam;
+            document.getElementById('view-kejadian').innerText = d.kejadian;
+            document.getElementById('view-isi').innerText = d.isi;
+            document.getElementById('view-barang').innerText = d.barang;
+            document.getElementById('view-jumlah').innerText = d.jumlah;
+            document.getElementById('view-pembawa').innerText = d.pembawa;
+            document.getElementById('view-dept').innerText = d.dept;
+            document.getElementById('view-glutpe').innerText = d.glutpe;
+            document.getElementById('view-gldpp').innerText = d.gldpp;
+            document.getElementById('view-alasan').innerText = d.alasan;
+            document.getElementById('nama-jelas-1').innerText = d.nama1 || "";
+            document.getElementById('nama-jelas-2').innerText = d.nama2 || "";
+            document.getElementById('nama-jelas-3').innerText = d.nama3 || "";
+            
+            // Tampilkan TTD pada lembar dokumen pratinjau cetak/PDF
+            document.getElementById('img-ttd1').src = d.ttd1 || "";
+            document.getElementById('img-ttd2').src = d.ttd2 || "";
+            document.getElementById('img-ttd3').src = d.ttd3 || "";
+            document.getElementById('view-tgl-ttd').innerText = formatTanggalIndo(d.tanggal);
+
+            // Merender dokumen foto bukti lampiran halaman ke-2
+            const fContainer = document.getElementById('foto-container');
+            fContainer.innerHTML = d.fotoList && d.fotoList.length > 0 
+                ? d.fotoList.map(f => `<div class="border-2 p-1 rounded bg-white"><img src="${f}" class="w-full h-auto object-contain max-h-[350px] mx-auto"></div>`).join('')
+                : '<p class="text-center col-span-2 text-gray-400 py-10">Tidak ada foto bukti.</p>';
+        }
+
+        function exportKePDF() {
+            const element = document.getElementById('area-pdf');
+            const opt = {
+                margin: 0,
+                filename: `Laporan_${document.getElementById('view-nomor').innerText}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+            html2pdf().set(opt).from(element).save();
+        }
+
+        window.onload = () => {
+            document.getElementById('input-tanggal').value = new Date().toISOString().split('T')[0];
+            resizeCanvas();
+            loadRiwayat();
+        };
+    </script>
+</body>
+</html>
